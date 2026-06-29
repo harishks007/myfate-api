@@ -39,13 +39,15 @@ Respond with ONLY valid JSON (no markdown, no extra text):
 
     // Call 2 — Astrology (only if birth details provided)
     const hasBirth = birthDetails && birthDetails.dob;
+    const currentYear = new Date().getFullYear();
     const astroPromise = hasBirth ? client.messages.create({
       model: SONNET,
       max_tokens: 1500,
       system: `${langPrefix}You are a Vedic and Western astrology expert. Given birth details, provide an astrological reading.
+IMPORTANT: Today's year is ${currentYear}. The yearPrediction field MUST refer to ${currentYear} or ${currentYear}-${currentYear + 1}. Do NOT mention any year before ${currentYear}.
 Respond with ONLY valid JSON (no markdown, no extra text):
-{"sunSign":"zodiac sign","moonSign":"moon sign","risingSign":"rising sign or null","planetaryInfluences":"2 sentence description","astrologyReading":"3 sentence personalised reading","yearPrediction":"2 sentence prediction for this year","compatibility":"best zodiac matches for love","luckyDay":"luckiest day of week","remedy":"one Vedic remedy (mantra, gemstone, or ritual)"}`,
-      messages: [{ role: 'user', content: `Date of Birth: ${birthDetails.dob}${birthDetails.birthPlace ? `\nPlace of Birth: ${birthDetails.birthPlace}` : ''}${birthDetails.birthTime ? `\nTime of Birth: ${birthDetails.birthTime}` : ''}\n\nProvide the astrological reading as JSON.` }],
+{"sunSign":"zodiac sign","moonSign":"moon sign","risingSign":"rising sign or null","planetaryInfluences":"2 sentence description","astrologyReading":"3 sentence personalised reading","yearPrediction":"2 sentence prediction for ${currentYear}","compatibility":"best zodiac matches for love","luckyDay":"luckiest day of week","remedy":"one Vedic remedy (mantra, gemstone, or ritual)"}`,
+      messages: [{ role: 'user', content: `Date of Birth: ${birthDetails.dob}${birthDetails.birthPlace ? `\nPlace of Birth: ${birthDetails.birthPlace}` : ''}${birthDetails.birthTime ? `\nTime of Birth: ${birthDetails.birthTime}` : ''}\nToday's date: ${new Date().toDateString()}\n\nProvide the astrological reading as JSON. yearPrediction must be about ${currentYear}.` }],
     }) : Promise.resolve(null);
 
     // Run both in parallel
@@ -65,7 +67,13 @@ Respond with ONLY valid JSON (no markdown, no extra text):
       if (astroFence) astroText = astroFence[1].trim();
       const as = astroText.indexOf('{'); const ae = astroText.lastIndexOf('}');
       try {
-        palmResult.astrology = JSON.parse(astroText.slice(as, ae + 1));
+        const astro = JSON.parse(astroText.slice(as, ae + 1));
+        // Replace any stale year references in yearPrediction with current year
+        if (astro.yearPrediction) {
+          astro.yearPrediction = astro.yearPrediction
+            .replace(/20(1[0-9]|2[0-5])(-20(1[0-9]|2[0-5]))?/g, `${currentYear}`);
+        }
+        palmResult.astrology = astro;
       } catch (e) {
         console.error('Astrology parse error:', e.message);
       }
