@@ -33,7 +33,7 @@ module.exports = async (req, res) => {
 
     const response = await client.messages.create({
       model: SONNET,
-      max_tokens: 3000,
+      max_tokens: 6000,
       system: `${langPrefix}You are an expert palmist. Analyze BOTH palms together and give a unified combined reading comparing both hands.
 ${buildBirthContext(birthDetails)}
 Respond with ONLY a valid JSON object (no markdown):
